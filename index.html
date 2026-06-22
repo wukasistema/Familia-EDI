@@ -166,11 +166,18 @@ section{padding:clamp(60px,9vw,116px) 0;position:relative}
 .zap-badge{position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;border-radius:11px;background:var(--wk-terra);color:#fff;font-family:var(--mono);font-size:12px;display:none;align-items:center;justify-content:center;padding:0 6px}
 .zap-badge.on{display:flex}
 
-/* LIGHTBOX */
+/* LIGHTBOX / CARROSSEL */
 .lb{position:fixed;inset:0;z-index:300;background:rgba(20,19,17,.94);display:none;align-items:center;justify-content:center;padding:24px}
 .lb.on{display:flex}
-.lb img{max-width:94vw;max-height:90vh;border-radius:10px;box-shadow:0 30px 80px -20px #000}
-.lb-close{position:absolute;top:18px;right:22px;width:46px;height:46px;border-radius:50%;border:1px solid var(--wk-line-dk);background:rgba(244,241,235,.08);color:var(--wk-plaster);font-size:22px;cursor:pointer}
+.lb-stage{position:relative;display:flex;align-items:center;justify-content:center;max-width:94vw;max-height:90vh}
+.lb img{max-width:90vw;max-height:88vh;border-radius:10px;box-shadow:0 30px 80px -20px #000;user-select:none}
+.lb-close{position:absolute;top:18px;right:22px;width:46px;height:46px;border-radius:50%;border:1px solid var(--wk-line-dk);background:rgba(244,241,235,.08);color:var(--wk-plaster);font-size:22px;cursor:pointer;z-index:2}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:54px;height:54px;border-radius:50%;border:1px solid var(--wk-line-dk);background:rgba(244,241,235,.1);color:var(--wk-plaster);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;transition:background .25s,transform .25s}
+.lb-nav:hover{background:var(--wk-corten);transform:translateY(-50%) scale(1.06)}
+.lb-prev{left:16px}.lb-next{right:16px}
+.lb-nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.lb-count{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:2;font-family:var(--mono);font-size:13px;letter-spacing:.12em;color:var(--wk-ash);background:rgba(20,19,17,.6);padding:7px 14px;border-radius:999px}
+@media(max-width:560px){.lb-nav{width:46px;height:46px}.lb-prev{left:8px}.lb-next{right:8px}}
 
 .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
 .reveal.in{opacity:1;transform:none}
@@ -497,7 +504,13 @@ section{padding:clamp(60px,9vw,116px) 0;position:relative}
 </main>
 
 <button class="zap-float" id="zapFloat" type="button" aria-label="Enviar escolhas no WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.8.8.8-2.8-.2-.3A8 8 0 1 1 12 20zm4.5-5.9c-.2-.1-1.4-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3a.5.5 0 0 0 0-.5c0-.1-.6-1.5-.8-2s-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 2.8 2.8 0 0 0-.9 2.1 4.9 4.9 0 0 0 1 2.6 11 11 0 0 0 4.3 3.8c1.6.6 1.6.4 1.9.4a2.5 2.5 0 0 0 1.6-1.1 2 2 0 0 0 .1-1.1c0-.1-.2-.2-.4-.3z"></path></svg><span class="zap-badge" id="zapBadge">0</span></button>
-<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Foto ampliada"><button class="lb-close" id="lbClose" aria-label="Fechar">&times;</button><img id="lbImg" src="" alt=""></div>
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Foto ampliada">
+  <button class="lb-close" id="lbClose" aria-label="Fechar">&times;</button>
+  <button class="lb-nav lb-prev" id="lbPrev" aria-label="Foto anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button>
+  <div class="lb-stage"><img id="lbImg" src="" alt=""></div>
+  <button class="lb-nav lb-next" id="lbNext" aria-label="Proxima foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg></button>
+  <span class="lb-count" id="lbCount"></span>
+</div>
 
 <script>
 (function(){
@@ -533,15 +546,44 @@ section{padding:clamp(60px,9vw,116px) 0;position:relative}
   if(!reduce&&"IntersectionObserver" in window){var io2=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){runCount(e.target);io2.unobserve(e.target);}});},{threshold:0.6});document.querySelectorAll(".count").forEach(function(el){io2.observe(el);});}
   else{document.querySelectorAll(".count").forEach(function(el){el.textContent=el.dataset.count;});}
 
-  // Lightbox
-  var lb=document.getElementById("lb"),lbImg=document.getElementById("lbImg");
-  function openLb(src,alt){lbImg.src=src;lbImg.alt=alt||"";lb.classList.add("on");document.body.style.overflow="hidden";}
+  // Lightbox com carrossel por ambiente
+  var lb=document.getElementById("lb"),lbImg=document.getElementById("lbImg"),
+      lbPrev=document.getElementById("lbPrev"),lbNext=document.getElementById("lbNext"),lbCount=document.getElementById("lbCount");
+  var groups={}, gc=0, curG=null, curI=0;
+  // agrupa as fotos ampliaveis por secao (ambiente), na ordem em que aparecem
+  document.querySelectorAll("main section").forEach(function(sec){
+    var els=sec.querySelectorAll(".opt-zoom, .ph");
+    if(!els.length)return;
+    var gid="g"+(gc++), arr=[];
+    els.forEach(function(el,idx){
+      var img=el.querySelector("img");
+      arr.push({src:el.dataset.full, alt:(img?img.alt:el.getAttribute("aria-label"))||""});
+      el.dataset.lbg=gid; el.dataset.lbi=idx;
+    });
+    groups[gid]=arr;
+  });
+  function render(){
+    var arr=groups[curG]; if(!arr)return;
+    var it=arr[curI]; lbImg.src=it.src; lbImg.alt=it.alt;
+    var many=arr.length>1;
+    lbPrev.style.display=lbNext.style.display=many?"flex":"none";
+    lbCount.style.display=many?"block":"none";
+    lbCount.textContent=(curI+1)+" / "+arr.length;
+  }
+  function step(d){var arr=groups[curG]; if(!arr)return; curI=(curI+d+arr.length)%arr.length; render();}
+  function openFrom(el){curG=el.dataset.lbg; curI=+el.dataset.lbi; render(); lb.classList.add("on"); document.body.style.overflow="hidden";}
   function closeLb(){lb.classList.remove("on");lbImg.src="";document.body.style.overflow="";}
-  document.querySelectorAll(".ph").forEach(function(b){b.addEventListener("click",function(){openLb(b.dataset.full,b.querySelector("img").alt);});});
-  document.querySelectorAll(".opt-zoom").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();ev.stopPropagation();openLb(b.dataset.full,b.getAttribute("aria-label")||"");});});
+  document.querySelectorAll(".ph").forEach(function(b){b.addEventListener("click",function(){openFrom(b);});});
+  document.querySelectorAll(".opt-zoom").forEach(function(b){b.addEventListener("click",function(ev){ev.preventDefault();ev.stopPropagation();openFrom(b);});});
+  lbPrev.addEventListener("click",function(e){e.stopPropagation();step(-1);});
+  lbNext.addEventListener("click",function(e){e.stopPropagation();step(1);});
   document.getElementById("lbClose").addEventListener("click",closeLb);
-  lb.addEventListener("click",function(e){if(e.target===lb)closeLb();});
-  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeLb();});
+  lb.addEventListener("click",function(e){if(e.target===lb||e.target.classList.contains("lb-stage"))closeLb();});
+  document.addEventListener("keydown",function(e){if(!lb.classList.contains("on"))return;if(e.key==="Escape")closeLb();else if(e.key==="ArrowRight")step(1);else if(e.key==="ArrowLeft")step(-1);});
+  // swipe no mobile
+  var tx=0;
+  lb.addEventListener("touchstart",function(e){tx=e.changedTouches[0].clientX;},{passive:true});
+  lb.addEventListener("touchend",function(e){var dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50)step(dx<0?1:-1);},{passive:true});
 
   if(!reduce){var he=document.querySelector(".hero-img");window.addEventListener("scroll",function(){var y=window.scrollY;if(he&&y<window.innerHeight)he.style.transform="translateY("+(y*0.18).toFixed(1)+"px)";},{passive:true});}
 })();
